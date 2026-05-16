@@ -1856,14 +1856,6 @@ export function MainLayout() {
               {!isSidebarMini && (
                 <div className="flex items-center justify-between px-2 py-1 text-[13px] text-gray-600 dark:text-gray-400 uppercase tracking-widest font-bold opacity-80 mb-1">
                   <span>Direct Messages</span>
-                  {members.length > 10 && (
-                    <button
-                      onClick={() => setShowAllMembers(!showAllMembers)}
-                      className="text-[10px] text-indigo-500 hover:underline lowercase font-normal"
-                    >
-                      {showAllMembers ? 'Show Less' : `View All (${members.length})`}
-                    </button>
-                  )}
                 </div>
               )}
               <div className={`${isSidebarMini ? '' : 'pl-1 ml-1'} ${isSidebarMini ? 'mt-0' : 'mt-1'} space-y-0.5 relative font-sans`}>
