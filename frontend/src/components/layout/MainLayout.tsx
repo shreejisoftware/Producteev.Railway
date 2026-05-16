@@ -1856,7 +1856,7 @@ export function MainLayout() {
               {!isSidebarMini && (
                 <div className="flex items-center justify-between px-2 py-1 text-[13px] text-gray-600 dark:text-gray-400 uppercase tracking-widest font-bold opacity-80 mb-1">
                   <span>Direct Messages</span>
-                  {members.length > members.filter((m: any) => (m.user?.id === currentUser?.id) || (unreadMessageCounts[m.user?.id || ''] > 0)).length && (
+                  {members.length > 10 && (
                     <button
                       onClick={() => setShowAllMembers(!showAllMembers)}
                       className="text-[10px] text-indigo-500 hover:underline lowercase font-normal"
@@ -1867,13 +1867,7 @@ export function MainLayout() {
                 </div>
               )}
               <div className={`${isSidebarMini ? '' : 'pl-1 ml-1'} ${isSidebarMini ? 'mt-0' : 'mt-1'} space-y-0.5 relative font-sans`}>
-                {members
-                  .filter((m: any) => {
-                    if (showAllMembers) return true;
-                    const isMe = m.user?.id === currentUser?.id;
-                    const hasUnread = (unreadMessageCounts[m.user?.id || ''] || 0) > 0;
-                    return isMe || hasUnread;
-                  })
+                {[...members]
                   .sort((a, b) => {
                     // 1) Place current user first
                     if (a.user?.id === currentUser?.id) return -1;
@@ -1889,6 +1883,7 @@ export function MainLayout() {
                     const bName = (b.user?.firstName || '').toLowerCase();
                     return aName.localeCompare(bName);
                   })
+                  .slice(0, showAllMembers ? undefined : 10)
                   .map((m: any) => {
                     const user = m.user;
                     if (!user) return null;
