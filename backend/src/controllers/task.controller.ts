@@ -18,8 +18,10 @@ const createSchema = z.object({
   priority: z.nativeEnum(TaskPriority).optional(),
   startDate: z.string().optional(),
   dueDate: z.string().optional(),
+  timeEstimate: z.number().int().nonnegative().optional(),
   projectId: z.string().uuid().optional(),
   listId: z.string().uuid().optional(),
+  parentTaskId: z.string().uuid().optional(),
   isFavorite: z.boolean().optional(),
   assigneeIds: z.array(z.string().uuid()).optional(),
   tagIds: z.array(z.string().uuid()).optional(),
@@ -32,9 +34,11 @@ const updateSchema = z.object({
   priority: z.nativeEnum(TaskPriority).optional(),
   startDate: z.string().nullable().optional(),
   dueDate: z.string().nullable().optional(),
+  timeEstimate: z.number().int().nonnegative().nullable().optional(),
   isFavorite: z.boolean().optional(),
   assigneeIds: z.array(z.string().uuid()).nullable().optional(),
   listId: z.string().uuid().nullable().optional(),
+  parentTaskId: z.string().uuid().nullable().optional(),
   tagIds: z.array(z.string().uuid()).nullable().optional(),
 });
 
@@ -45,6 +49,7 @@ const bulkUpdateSchema = z.object({
     priority: z.nativeEnum(TaskPriority).optional(),
     startDate: z.string().nullable().optional(),
     dueDate: z.string().nullable().optional(),
+    timeEstimate: z.number().int().nonnegative().nullable().optional(),
     isFavorite: z.boolean().optional(),
     assigneeIds: z.array(z.string().uuid()).nullable().optional(),
     tagIds: z.array(z.string().uuid()).nullable().optional(),
@@ -369,6 +374,9 @@ export class TaskController {
         changes.dueDate = { from: oldDate, to: newDate };
       }
     }
+    if (data.timeEstimate !== undefined && data.timeEstimate !== before.timeEstimate) {
+      changes.timeEstimate = { from: before.timeEstimate, to: data.timeEstimate };
+    }
 
     await ActivityService.log({
       userId: req.user.id,
@@ -420,9 +428,10 @@ export class TaskController {
     if (!req.user) throw ApiError.unauthorized();
     const { taskIds, data } = bulkUpdateSchema.parse(req.body);
 
+    let membership;
     if (taskIds.length > 0) {
       const firstTask = await TaskService.getById(taskIds[0], req.user.id);
-      const membership = await this.verifyTaskAccess(firstTask, req.user.id);
+      membership = await this.verifyTaskAccess(firstTask, req.user.id);
 
       if (membership.role === 'GUEST' || membership.role === 'LIMITED_MEMBER' || membership.role === 'MEMBER') {
         const allowedFields = ['status', 'isFavorite'];

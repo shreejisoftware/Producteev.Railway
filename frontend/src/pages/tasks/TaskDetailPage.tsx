@@ -16,7 +16,7 @@ import { useAppSelector } from '../../store';
 import { cn } from '../../utils/cn';
 import { getUploadUrl, resolveAssetUrl } from '../../utils/assetUrl';
 import { linkifyHtmlText, generateId, splitPlainTextWithUrls } from '../../utils/text';
-import type { Task, TaskStatus, TaskPriority, Tag } from '../../types';
+import type { Task, TaskStatus, TaskPriority, Tag, Checklist, ChecklistItem } from '../../types';
 import { AvatarStack } from '../../components/ui/AvatarStack';
 import { ImagePreview } from '../../components/attachments/ImagePreview';
 import DatePickerPopup from '../../components/common/DatePickerPopup';
@@ -377,24 +377,7 @@ function IconPencilSmall() {
   );
 }
 
-/* ── Checklist item type ── */
-interface ChecklistItem {
-  id: string;
-  text: string;
-  checked: boolean;
-}
-interface Checklist {
-  id: string;
-  name: string;
-  items: ChecklistItem[];
-}
-
 /* ── Subtask type (local) ── */
-interface Subtask {
-  id: string;
-  title: string;
-  status: TaskStatus;
-}
 
 /* ── Comment type (from backend) ── */
 interface CommentAttachment {
@@ -576,8 +559,6 @@ export function TaskDetailPage({ isModal = false, taskId: propTaskId, onClose }:
   const [editingRelationships, setEditingRelationships] = useState(false);
   const [newRelationship, setNewRelationship] = useState('');
 
-  /* ── Subtasks ── */
-  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const socket = useSocket();
 
   const [checklists, setChecklists] = useState<Checklist[]>([]);
@@ -786,6 +767,15 @@ export function TaskDetailPage({ isModal = false, taskId: propTaskId, onClose }:
       setAssignees(res.data.data.assignees || []);
       // Init tags
       setTags(res.data.data.tags || []);
+      // Init timeEstimate
+      if (res.data.data.timeEstimate) {
+        const mins = res.data.data.timeEstimate;
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        setTimeEstimate(`${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm' : ''}`.trim() || '0m');
+      } else {
+        setTimeEstimate('');
+      }
 
       // Load team users for this task's organization
       const orgId = res.data.data.project?.organizationId || res.data.data.list?.space?.organizationId || currentOrg?.id;
@@ -884,48 +874,98 @@ export function TaskDetailPage({ isModal = false, taskId: propTaskId, onClose }:
   /* (formatTrackedTime removed — handled by TimeTracker component) */
 
   /* ── Subtask handlers ── */
-  const handleAddSubtask = () => {
-    if (!newSubtaskTitle.trim()) return;
-    const newSub: Subtask = {
-      id: generateId(),
-      title: newSubtaskTitle.trim(),
-      status: 'OPEN',
-    };
-    setSubtasks((prev) => [...prev, newSub]);
+  const handleAddSubtask = async () => {
+    if (!newSubtaskTitle.trim() || !task) return;
+    const title = newSubtaskTitle.trim();
     setNewSubtaskTitle('');
     setAddingSubtask(false);
+
+    try {
+      const res = await api.post<{ success: boolean; data: Task }>('/tasks', {
+        title,
+        parentTaskId: task.id,
+        projectId: task.projectId || undefined,
+        listId: task.listId || undefined,
+      });
+      const newSubtask = res.data.data;
+      setTask({ ...task, subtasks: [...(task.subtasks || []), newSubtask] });
+    } catch (err) {
+      console.error('Failed to add subtask:', err);
+    }
   };
 
-  const toggleSubtaskStatus = (subId: string) => {
-    setSubtasks((prev) =>
-      prev.map((s) =>
-        s.id === subId ? { ...s, status: s.status === 'COMPLETED' ? 'OPEN' : 'COMPLETED' } : s
-      )
-    );
+  const toggleSubtaskStatus = async (subId: string) => {
+    if (!task) return;
+    const subtask = (task.subtasks || []).find(s => s.id === subId);
+    if (!subtask) return;
+
+    const newStatus = subtask.status === 'COMPLETED' ? 'OPEN' : 'COMPLETED';
+    
+    // Optimistic
+    setTask({
+      ...task,
+      subtasks: (task.subtasks || []).map(s => s.id === subId ? { ...s, status: newStatus as TaskStatus } : s)
+    });
+
+    try {
+      await api.patch(`/tasks/${subId}`, { status: newStatus });
+    } catch (err) {
+      console.error('Failed to toggle subtask status:', err);
+      // Revert on error
+      setTask({
+        ...task,
+        subtasks: (task.subtasks || []).map(s => s.id === subId ? { ...s, status: subtask.status } : s)
+      });
+    }
   };
 
-  const deleteSubtask = (subId: string) => {
-    setSubtasks((prev) => prev.filter((s) => s.id !== subId));
+  const deleteSubtask = async (subId: string) => {
+    if (!task) return;
+    // Optimistic
+    setTask({
+      ...task,
+      subtasks: (task.subtasks || []).filter(s => s.id !== subId)
+    });
+
     if (editingSubtaskId === subId) {
       setEditingSubtaskId(null);
       setEditingSubtaskTitle('');
     }
+
+    try {
+      await api.delete(`/tasks/${subId}`);
+    } catch (err) {
+      console.error('Failed to delete subtask:', err);
+      loadTask(); // reload if failed
+    }
   };
 
-  const startRenameSubtask = (sub: Subtask) => {
+  const startRenameSubtask = (sub: Task) => {
     setEditingSubtaskId(sub.id);
     setEditingSubtaskTitle(sub.title);
   };
 
-  const commitRenameSubtask = () => {
-    if (!editingSubtaskId) return;
+  const commitRenameSubtask = async () => {
+    if (!editingSubtaskId || !task) return;
     const t = editingSubtaskTitle.trim();
     if (!t) {
       setEditingSubtaskId(null);
       setEditingSubtaskTitle('');
       return;
     }
-    setSubtasks((prev) => prev.map((s) => (s.id === editingSubtaskId ? { ...s, title: t } : s)));
+
+    // Optimistic
+    setTask({
+      ...task,
+      subtasks: (task.subtasks || []).map(s => s.id === editingSubtaskId ? { ...s, title: t } : s)
+    });
+
+    try {
+      await api.patch(`/tasks/${editingSubtaskId}`, { title: t });
+    } catch (err) {
+      console.error('Failed to rename subtask:', err);
+    }
+
     setEditingSubtaskId(null);
     setEditingSubtaskTitle('');
   };
@@ -936,72 +976,110 @@ export function TaskDetailPage({ isModal = false, taskId: propTaskId, onClose }:
   };
 
   /* ── Checklist handlers ── */
-  const handleCreateChecklist = () => {
-    if (!newChecklistName.trim()) return;
-    const cl: Checklist = {
-      id: generateId(),
-      name: newChecklistName.trim(),
-      items: [],
-    };
-    setChecklists((prev) => [...prev, cl]);
+  const handleCreateChecklist = async () => {
+    if (!newChecklistName.trim() || !task) return;
+    const name = newChecklistName.trim();
     setNewChecklistName('');
     setAddingChecklist(false);
+
+    try {
+      const res = await api.post<{ success: boolean; data: Checklist }>(`/checklists/task/${task.id}`, { name });
+      setTask({ ...task, checklists: [...(task.checklists || []), res.data.data] });
+    } catch (err) {
+      console.error('Failed to create checklist:', err);
+    }
   };
 
-  const handleAddChecklistItem = (checklistId: string) => {
-    if (!newChecklistItemText.trim()) return;
-    const item: ChecklistItem = {
-      id: generateId(),
-      text: newChecklistItemText.trim(),
-      checked: false,
-    };
-    setChecklists((prev) =>
-      prev.map((cl) =>
-        cl.id === checklistId ? { ...cl, items: [...cl.items, item] } : cl
-      )
-    );
+  const handleAddChecklistItem = async (checklistId: string) => {
+    if (!newChecklistItemText.trim() || !task) return;
+    const text = newChecklistItemText.trim();
     setNewChecklistItemText('');
     setAddingChecklistItem(null);
+
+    try {
+      const res = await api.post<{ success: boolean; data: ChecklistItem }>(`/checklists/${checklistId}/items`, { text });
+      setTask({
+        ...task,
+        checklists: (task.checklists || []).map(cl => 
+          cl.id === checklistId ? { ...cl, items: [...cl.items, res.data.data] } : cl
+        )
+      });
+    } catch (err) {
+      console.error('Failed to add checklist item:', err);
+    }
   };
 
-  const toggleChecklistItem = (checklistId: string, itemId: string) => {
-    setChecklists((prev) =>
-      prev.map((cl) =>
-        cl.id === checklistId
-          ? {
-            ...cl,
-            items: cl.items.map((it) =>
-              it.id === itemId ? { ...it, checked: !it.checked } : it
-            ),
-          }
-          : cl
+  const toggleChecklistItem = async (checklistId: string, itemId: string) => {
+    if (!task) return;
+    const cl = (task.checklists || []).find(c => c.id === checklistId);
+    const item = cl?.items.find(i => i.id === itemId);
+    if (!item) return;
+
+    const newChecked = !item.checked;
+    
+    // Optimistic
+    setTask({
+      ...task,
+      checklists: (task.checklists || []).map(c => 
+        c.id === checklistId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, checked: newChecked } : i) } : c
       )
-    );
+    });
+
+    try {
+      await api.patch(`/checklists/items/${itemId}`, { checked: newChecked });
+    } catch (err) {
+      console.error('Failed to toggle checklist item:', err);
+      // Revert
+      setTask({
+        ...task,
+        checklists: (task.checklists || []).map(c => 
+          c.id === checklistId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, checked: item.checked } : i) } : c
+        )
+      });
+    }
   };
 
-  const deleteChecklistItem = (checklistId: string, itemId: string) => {
-    setChecklists((prev) =>
-      prev.map((cl) =>
-        cl.id === checklistId
-          ? { ...cl, items: cl.items.filter((it) => it.id !== itemId) }
-          : cl
+  const deleteChecklistItem = async (checklistId: string, itemId: string) => {
+    if (!task) return;
+    // Optimistic
+    setTask({
+      ...task,
+      checklists: (task.checklists || []).map(cl => 
+        cl.id === checklistId ? { ...cl, items: cl.items.filter(it => it.id !== itemId) } : cl
       )
-    );
+    });
+
     if (editingChecklistItem?.checklistId === checklistId && editingChecklistItem?.itemId === itemId) {
       setEditingChecklistItem(null);
       setEditingChecklistItemText('');
     }
+
+    try {
+      await api.delete(`/checklists/items/${itemId}`);
+    } catch (err) {
+      console.error('Failed to delete checklist item:', err);
+      loadTask();
+    }
   };
 
-  const deleteChecklist = (checklistId: string) => {
-    setChecklists((prev) => prev.filter((cl) => cl.id !== checklistId));
+  const deleteChecklist = async (checklistId: string) => {
+    if (!task) return;
+    // Optimistic
+    setTask({
+      ...task,
+      checklists: (task.checklists || []).filter(cl => cl.id !== checklistId)
+    });
+
     if (editingChecklistId === checklistId) {
       setEditingChecklistId(null);
       setEditingChecklistName('');
     }
-    if (editingChecklistItem?.checklistId === checklistId) {
-      setEditingChecklistItem(null);
-      setEditingChecklistItemText('');
+    
+    try {
+      await api.delete(`/checklists/${checklistId}`);
+    } catch (err) {
+      console.error('Failed to delete checklist:', err);
+      loadTask();
     }
   };
 
@@ -1011,13 +1089,26 @@ export function TaskDetailPage({ isModal = false, taskId: propTaskId, onClose }:
     setEditingChecklistName(cl.name);
   };
 
-  const commitRenameChecklist = (checklistId: string) => {
+  const commitRenameChecklist = async (checklistId: string) => {
+    if (!task) return;
     const n = editingChecklistName.trim();
     if (!n) {
       setEditingChecklistId(null);
       return;
     }
-    setChecklists((prev) => prev.map((cl) => (cl.id === checklistId ? { ...cl, name: n } : cl)));
+
+    // Optimistic
+    setTask({
+      ...task,
+      checklists: (task.checklists || []).map(cl => cl.id === checklistId ? { ...cl, name: n } : cl)
+    });
+
+    try {
+      await api.patch(`/checklists/${checklistId}`, { name: n });
+    } catch (err) {
+      console.error('Failed to rename checklist:', err);
+    }
+    
     setEditingChecklistId(null);
     setEditingChecklistName('');
   };
@@ -1033,8 +1124,8 @@ export function TaskDetailPage({ isModal = false, taskId: propTaskId, onClose }:
     setEditingChecklistItemText(item.text);
   };
 
-  const commitRenameChecklistItem = () => {
-    if (!editingChecklistItem) return;
+  const commitRenameChecklistItem = async () => {
+    if (!editingChecklistItem || !task) return;
     const { checklistId, itemId } = editingChecklistItem;
     const t = editingChecklistItemText.trim();
     if (!t) {
@@ -1042,16 +1133,21 @@ export function TaskDetailPage({ isModal = false, taskId: propTaskId, onClose }:
       setEditingChecklistItemText('');
       return;
     }
-    setChecklists((prev) =>
-      prev.map((cl) =>
-        cl.id === checklistId
-          ? {
-            ...cl,
-            items: cl.items.map((it) => (it.id === itemId ? { ...it, text: t } : it)),
-          }
-          : cl
+
+    // Optimistic
+    setTask({
+      ...task,
+      checklists: (task.checklists || []).map(cl => 
+        cl.id === checklistId ? { ...cl, items: cl.items.map(it => it.id === itemId ? { ...it, text: t } : it) } : cl
       )
-    );
+    });
+
+    try {
+      await api.patch(`/checklists/items/${itemId}`, { text: t });
+    } catch (err) {
+      console.error('Failed to rename checklist item:', err);
+    }
+
     setEditingChecklistItem(null);
     setEditingChecklistItemText('');
   };
@@ -2148,8 +2244,27 @@ export function TaskDetailPage({ isModal = false, taskId: propTaskId, onClose }:
                       type="text"
                       value={timeEstimate}
                       onChange={(e) => setTimeEstimate(e.target.value)}
-                      onBlur={() => setEditingTimeEstimate(false)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') setEditingTimeEstimate(false); if (e.key === 'Escape') setEditingTimeEstimate(false); }}
+                      onBlur={() => {
+                        setEditingTimeEstimate(false);
+                        const match = timeEstimate.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/);
+                        let totalMins = null;
+                        if (match && (match[1] || match[2])) {
+                          totalMins = (parseInt(match[1] || '0') * 60) + parseInt(match[2] || '0');
+                        }
+                        updateTask({ timeEstimate: totalMins });
+                      }}
+                      onKeyDown={(e) => { 
+                        if (e.key === 'Enter') {
+                          setEditingTimeEstimate(false);
+                          const match = timeEstimate.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/);
+                          let totalMins = null;
+                          if (match && (match[1] || match[2])) {
+                            totalMins = (parseInt(match[1] || '0') * 60) + parseInt(match[2] || '0');
+                          }
+                          updateTask({ timeEstimate: totalMins });
+                        }
+                        if (e.key === 'Escape') setEditingTimeEstimate(false); 
+                      }}
                       placeholder="e.g. 2h 30m"
                       autoFocus
                       className="text-xs border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1 outline-none w-24 bg-transparent dark:text-gray-300"
@@ -2367,9 +2482,9 @@ export function TaskDetailPage({ isModal = false, taskId: propTaskId, onClose }:
                 </div>
 
                 {/* Subtask list */}
-                {subtasks.length > 0 && (
+                {(task.subtasks && task.subtasks.length > 0) && (
                   <div className="mb-3 border border-gray-100 dark:border-gray-700 rounded-lg overflow-hidden">
-                    {subtasks.map((sub) => (
+                    {task.subtasks.map((sub) => (
                       <div key={sub.id} className="flex items-center gap-2.5 px-3 py-2 border-b border-gray-50 dark:border-gray-700/50 last:border-b-0 group hover:bg-gray-50 dark:hover:bg-gray-700">
                         <button
                           type="button"
@@ -2495,7 +2610,7 @@ export function TaskDetailPage({ isModal = false, taskId: propTaskId, onClose }:
                 </div>
 
                 {/* Existing checklists */}
-                {checklists.map((cl) => {
+                {(task?.checklists || []).map((cl) => {
                   const doneCount = cl.items.filter((it) => it.checked).length;
                   const totalCount = cl.items.length;
                   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;

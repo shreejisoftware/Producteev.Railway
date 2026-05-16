@@ -21,6 +21,7 @@ import invitationRoutes from './invitation.routes';
 import tagRoutes from './tag.routes';
 import adminRoutes from './admin.routes';
 import slackRoutes from './slack.routes';
+import checklistRoutes from './checklist.routes';
 import { assetRouter } from './asset.routes';
 
 export const router = Router();
@@ -51,3 +52,4 @@ router.use('/notifications', notificationRoutes);
 router.use('/invitations', invitationRoutes);
 router.use('/tags', tagRoutes);
 router.use('/admin', adminRoutes);
+router.use('/checklists', checklistRoutes);

@@ -12,6 +12,8 @@ export class TaskService {
         priority: data.priority || 'LOW',
         startDate: data.startDate ? new Date(data.startDate) : null,
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        timeEstimate: data.timeEstimate ?? null,
+        parentTaskId: data.parentTaskId || null,
         projectId: data.projectId,
         listId: data.listId,
         createdById: data.createdById,
@@ -48,7 +50,9 @@ export class TaskService {
     if (data.priority !== undefined) updateData.priority = data.priority;
     if (data.startDate !== undefined) updateData.startDate = data.startDate ? new Date(data.startDate) : null;
     if (data.dueDate !== undefined) updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
+    if (data.timeEstimate !== undefined) updateData.timeEstimate = data.timeEstimate;
     if (data.listId !== undefined) updateData.list = { connect: { id: data.listId } };
+    if (data.parentTaskId !== undefined) updateData.parentTask = data.parentTaskId ? { connect: { id: data.parentTaskId } } : { disconnect: true };
 
     if (data.assigneeIds !== undefined) {
       updateData.assignees = {
@@ -83,8 +87,8 @@ export class TaskService {
     });
 
     return {
-      ...task,
-      isFavorite: task.favoritedBy.length > 0
+      ...(task as any),
+      isFavorite: (task as any).favoritedBy?.length > 0
     };
   }
 
@@ -103,12 +107,13 @@ export class TaskService {
   }
 
   static async bulkUpdate(ids: string[], data: any) {
-    const { status, priority, assigneeIds, dueDate, startDate } = data;
+    const { status, priority, assigneeIds, dueDate, startDate, timeEstimate } = data;
     const updateData: any = {};
     if (status) updateData.status = status;
     if (priority) updateData.priority = priority;
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
     if (startDate !== undefined) updateData.startDate = startDate ? new Date(startDate) : null;
+    if (timeEstimate !== undefined) updateData.timeEstimate = timeEstimate;
 
     if (Object.keys(updateData).length > 0) {
       await prisma.task.updateMany({
@@ -153,14 +158,21 @@ export class TaskService {
         list: { select: { id: true, name: true, space: { select: { organizationId: true } } } },
         createdBy: { select: { id: true, email: true, firstName: true, lastName: true, avatarUrl: true } },
         tags: { select: { id: true, name: true, color: true } },
+        subtasks: { where: { isDeleted: false }, select: { id: true, title: true, status: true }, orderBy: { createdAt: 'asc' } },
+        checklists: {
+          include: {
+            items: { orderBy: { createdAt: 'asc' } }
+          },
+          orderBy: { createdAt: 'asc' }
+        },
         favoritedBy: { where: { id: userId } }
-      },
+      } as any,
     });
 
     if (!task) throw ApiError.notFound('Task not found');
     return {
-      ...task,
-      isFavorite: task.favoritedBy.length > 0
+      ...(task as any),
+      isFavorite: (task as any).favoritedBy?.length > 0
     };
   }
 
@@ -170,6 +182,7 @@ export class TaskService {
       listId: filters.listId,
       status: filters.status,
       priority: filters.priority,
+      parentTaskId: null,
       isDeleted: false,
     };
 
@@ -203,6 +216,7 @@ export class TaskService {
   static async getAssignedToUser(userId: string, organizationId?: string) {
     const where: Prisma.TaskWhereInput = {
       assignees: { some: { id: userId } },
+      parentTaskId: null,
       isDeleted: false,
     };
 
@@ -232,7 +246,7 @@ export class TaskService {
   }
 
   static async getAllTasks(requestingUserId: string, role: OrgRole, organizationId?: string, limit?: number) {
-    const where: Prisma.TaskWhereInput = { isDeleted: false };
+    const where: Prisma.TaskWhereInput = { isDeleted: false, parentTaskId: null };
     if (organizationId) {
       where.OR = [
         { project: { organizationId } },
@@ -268,6 +282,7 @@ export class TaskService {
       AND: [
         { favoritedBy: { some: { id: userId } } },
         { isDeleted: false },
+        { parentTaskId: null },
         ...(organizationId ? [{
           OR: [
             { project: { organizationId } },

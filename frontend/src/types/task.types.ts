@@ -9,6 +9,24 @@ export interface Tag {
   color: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  checked: boolean;
+  checklistId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Checklist {
+  id: string;
+  name: string;
+  taskId: string;
+  items: ChecklistItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -17,8 +35,10 @@ export interface Task {
   priority: TaskPriority;
   startDate: string | null;
   dueDate: string | null;
+  timeEstimate?: number | null;
   projectId: string;
   listId?: string | null;
+  parentTaskId?: string | null;
   assigneeIds: string[];
   createdById: string;
   createdAt: string;
@@ -44,6 +64,8 @@ export interface Task {
     } | null;
   } | null;
   tags?: Tag[];
+  subtasks?: Task[];
+  checklists?: Checklist[];
   isFavorite: boolean;
 }
 
@@ -56,9 +78,11 @@ export interface CreateTaskRequest {
   priority?: TaskPriority;
   startDate?: string;
   dueDate?: string;
+  timeEstimate?: number;
   isFavorite?: boolean;
   projectId: string;
   listId?: string;
+  parentTaskId?: string;
   assigneeIds?: string[];
 }
 
@@ -69,8 +93,10 @@ export interface UpdateTaskRequest {
   priority?: TaskPriority;
   startDate?: string | null;
   dueDate?: string | null;
+  timeEstimate?: number | null;
   assigneeIds?: string[] | null;
   listId?: string | null;
+  parentTaskId?: string | null;
   tagIds?: string[] | null;
   isFavorite?: boolean;
 }

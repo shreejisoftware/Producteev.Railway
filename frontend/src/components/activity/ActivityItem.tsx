@@ -112,7 +112,22 @@ function ActivityItemImpl({ activity, onImagePreview, onRefresh, onReply, onLike
     }
     case 'task.shared': actionText = 'shared this task with you'; break;
     case 'comment.created': actionText = 'added a comment'; break;
-    default: actionText = 'updated this task';
+    default: 
+      if (changes.timeEstimate !== undefined) {
+        const formatMins = (mins: number | null) => mins ? `${Math.floor(mins / 60) > 0 ? Math.floor(mins / 60) + 'h ' : ''}${mins % 60 > 0 ? mins % 60 + 'm' : ''}`.trim() : 'none';
+        actionText = `updated time estimate from ${formatMins(changes.timeEstimate.from)} to ${formatMins(changes.timeEstimate.to)}`;
+      } else if (changes.priority) {
+        actionText = `changed priority to ${changes.priority.to}`;
+      } else if (changes.dueDate) {
+        actionText = changes.dueDate.to ? `changed due date` : `removed due date`;
+      } else if (changes.title) {
+        actionText = `renamed task to "${changes.title.to}"`;
+      } else if (changes.description) {
+        actionText = `updated the description`;
+      } else {
+        actionText = 'updated this task';
+      }
+      break;
   }
 
   const config = ACTION_CONFIG[actionKey] || { icon: Clock, color: 'text-gray-500', iconColor: 'text-gray-400' };

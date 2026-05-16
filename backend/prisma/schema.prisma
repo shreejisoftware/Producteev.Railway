@@ -222,6 +222,7 @@ model Task {
   priority     TaskPriority @default(LOW)
   startDate    DateTime?    @map("start_date")
   dueDate      DateTime?    @map("due_date")
+  timeEstimate Int?         @map("time_estimate")
   projectId    String?      @map("project_id")
   createdById  String       @map("created_by_id")
   createdAt    DateTime     @default(now()) @map("created_at")
@@ -242,6 +243,7 @@ model Task {
   assignees    User[]       @relation("TaskAssignees")
   tags         Tag[]        @relation("TaskTags")
   favoritedBy  User[]       @relation("TaskFavorites")
+  checklists   Checklist[]
 
   isDeleted    Boolean      @default(false) @map("is_deleted")
   deletedAt    DateTime?    @map("deleted_at")
@@ -463,6 +465,32 @@ model ListMember {
   @@unique([listId, userId])
   @@index([userId])
   @@map("list_members")
+}
+
+model Checklist {
+  id        String          @id @default(uuid())
+  name      String
+  taskId    String          @map("task_id")
+  task      Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  items     ChecklistItem[]
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  @@index([taskId])
+  @@map("checklists")
+}
+
+model ChecklistItem {
+  id          String    @id @default(uuid())
+  text        String
+  checked     Boolean   @default(false)
+  checklistId String    @map("checklist_id")
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([checklistId])
+  @@map("checklist_items")
 }
 
 enum OrgRole {
