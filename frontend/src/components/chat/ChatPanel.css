@@ -1,0 +1,188 @@
+.avatar-bg-0 { background-color: #f31260; }
+.avatar-bg-1 { background-color: #0070f3; }
+.avatar-bg-2 { background-color: #17c964; }
+.avatar-bg-3 { background-color: #9333ea; }
+.avatar-bg-4 { background-color: #f5a623; }
+.avatar-bg-5 { background-color: #eb00ff; }
+.avatar-bg-me { background-color: #6366f1; }
+
+.avatar-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.avatar-content {
+    position: relative;
+    z-index: 10;
+}
+
+/* WhatsApp bubble tails */
+.bubble-tail-right {
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 8px;
+  height: 13px;
+}
+.bubble-tail-right::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-left: 8px solid #d9fdd3;
+  border-bottom: 8px solid transparent;
+}
+.dark .bubble-tail-right::before {
+  border-left-color: #005c4b;
+}
+
+.bubble-tail-left {
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 8px;
+  height: 13px;
+}
+.bubble-tail-left::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-right: 8px solid #ffffff;
+  border-bottom: 8px solid transparent;
+}
+.dark .bubble-tail-left::before {
+  border-right-color: #202c33;
+}
+
+/* WhatsApp background pattern */
+.wa-chat-bg {
+  background-color: #efeae2;
+  background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAABnSURBVHgB7dAxAQAgDACxh38PA7sIkFCoyrZt+4t7TgdG0iJpkbRIWiQtkhZJi6RF0iJpkbRIWiQtkhZJi6RF0iJpkbRIWiQtkhZJi6RF0iJpkbRIWiQtkhZJi6RF0iJpkbRIWv4BPvEGLj7RhosAAAAASUVORK5CYII=");
+  background-size: 412px;
+}
+.dark .wa-chat-bg {
+  background-color: #0b141a;
+  background-image: none;
+}
+
+.wa-chat-bg-light {
+  background-color: #efeae2;
+  background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNS0R1IArs4c6QAAAARnQU1BAACxjwv8YQUAAABnSURBVHgB7dAxAQAgDACxh38PA7sIkFCoyrZt+4t7TgdG0iJpkbRIWiQtkhZJi6RF0iJpkbRIWiQtkhZJi6RF0iJpkbRIWiQtkhZJi6RF0iJpkbRIWiQtkhZJi6RF0iJpkbRIWv4BPvEGLj7RhosAAAAASUVORK5CYII=");
+  background-size: 412px;
+}
+
+/* Typing dots animation */
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #8696a0;
+  display: inline-block;
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Scrollbar for chat */
+.wa-scrollbar::-webkit-scrollbar { width: 6px; }
+.wa-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.wa-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
+.dark .wa-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+
+/* ═══ Rich Input Bar ═══ */
+.chat-toolbar-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: #616061;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+.chat-toolbar-btn:hover {
+  background: #e8e8e8;
+  color: #1d1c1d;
+}
+.dark .chat-toolbar-btn {
+  color: #ababad;
+}
+.dark .chat-toolbar-btn:hover {
+  background: #383a3e;
+  color: #d1d2d3;
+}
+.chat-toolbar-btn-active {
+  background: #e0e0e0;
+  color: #1d1c1d;
+}
+.dark .chat-toolbar-btn-active {
+  background: #44464a;
+  color: #d1d2d3;
+}
+
+/* Rich editor placeholder & styling */
+.chat-rich-editor {
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.chat-rich-editor:focus {
+  outline: none;
+}
+.chat-rich-editor blockquote {
+  border-left: 3px solid #ccc;
+  padding-left: 10px;
+  margin: 4px 0;
+  color: #666;
+}
+.dark .chat-rich-editor blockquote {
+  border-left-color: #555;
+  color: #aaa;
+}
+.chat-rich-editor code {
+  background: #f1f1f1;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 13px;
+}
+.dark .chat-rich-editor code {
+  background: #333;
+}
+.chat-rich-editor pre {
+  background: #f1f1f1;
+  padding: 8px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  margin: 4px 0;
+}
+.dark .chat-rich-editor pre {
+  background: #2a2a2a;
+}
+.chat-rich-editor ul, .chat-rich-editor ol {
+  padding-left: 20px;
+  margin: 2px 0;
+}
+.chat-rich-editor a {
+  color: #1264a3;
+  text-decoration: underline;
+}
+.dark .chat-rich-editor a {
+  color: #1d9bd1;
+}

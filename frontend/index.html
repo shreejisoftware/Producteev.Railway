@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="Producteev - Professional Project Management System. Plan, track, and collaborate with your team in one powerful workspace." />
+  <link rel="icon" type="image/png" href="/tab-icon.png" />
+  <link rel="shortcut icon" type="image/png" href="/tab-icon.png" />
+  <link rel="apple-touch-icon" href="/tab-icon.png" />
+  <!-- Resource hints: resolve DNS + open connection to API before JS loads -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="dns-prefetch" href="https://ui-avatars.com" />
+  <link rel="dns-prefetch" href="https://raw.githubusercontent.com" />
+  <!-- Non-blocking font load: render text immediately, swap when font is ready -->
+  <link rel="preload" as="style"
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" media="print" onload="this.media='all'"
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" />
+  <title>Producteev</title>
+  <style>
+    /* Prevent FOUC */
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: var(--font-sans);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

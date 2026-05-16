@@ -1,0 +1,518 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String               @id @default(uuid())
+  email                   String               @unique
+  passwordHash            String               @map("password_hash")
+  firstName               String               @map("first_name")
+  lastName                String               @map("last_name")
+  avatarUrl               String?              @map("avatar_url")
+  createdAt               DateTime             @default(now()) @map("created_at")
+  updatedAt               DateTime             @updatedAt @map("updated_at")
+  mobileNo                String?              @map("mobile_no")
+  technology              String?
+  settings                Json                 @default("{}")
+  activities              Activity[]           @relation("userActivities")
+  attachmentsUploaded     Attachment[]         @relation("attachmentsUploaded")
+  comments                Comment[]            @relation("userComments")
+  folderMemberships       FolderMember[]
+  invitationsSent         Invitation[]         @relation("invitations_sent")
+  listMemberships         ListMember[]
+  messagesReceived        Message[]            @relation("messagesReceived")
+  messagesSent            Message[]            @relation("messagesSent")
+  notifications           Notification[]       @relation("userNotifications")
+  organizationMemberships OrganizationMember[]
+  projectsCreated         Project[]            @relation("projectsCreated")
+  spaceMemberships        SpaceMember[]
+  spacesCreated           Space[]              @relation("spacesCreated")
+  tasksCreated            Task[]               @relation("tasksCreated")
+  timeEntries             TimeEntry[]          @relation("userTimeEntries")
+  assignedTasks           Task[]               @relation("TaskAssignees")
+  favoriteTasks           Task[]               @relation("TaskFavorites")
+  deletedTasks            Task[]               @relation("TaskDeletedBy")
+  deletedFolders          Folder[]             @relation("FolderDeletedBy")
+  deletedLists            List[]               @relation("ListDeletedBy")
+  deletedProjects         Project[]            @relation("ProjectDeletedBy")
+  deletedAttachments      Attachment[]         @relation("AttachmentDeletedBy")
+  deletedSpaces           Space[]              @relation("SpaceDeletedBy")
+  uploads                 Upload[]             @relation("uploadsUploaded")
+
+  @@map("users")
+}
+
+model Organization {
+  id          String               @id @default(uuid())
+  name        String
+  slug        String               @unique
+  settings    Json                 @default("{}")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  invitations Invitation[]
+  members     OrganizationMember[]
+  notifications Notification[]
+  projects    Project[]
+  spaces      Space[]
+  tags        Tag[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  userId         String       @map("user_id")
+  role           OrgRole      @default(MEMBER)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+  @@map("organization_members")
+}
+
+model Space {
+  id             String        @id @default(uuid())
+  name           String
+  description    String?
+  color          String        @default("#3B82F6")
+  icon           String?
+  position       Int           @default(0)
+  organizationId String        @map("organization_id")
+  createdById    String        @map("created_by_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  folders        Folder[]
+  lists          List[]
+  projects       Project[]
+  members        SpaceMember[]
+  createdBy      User          @relation("spacesCreated", fields: [createdById], references: [id])
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  isDeleted      Boolean       @default(false) @map("is_deleted")
+  deletedAt      DateTime?     @map("deleted_at")
+  deletedById    String?       @map("deleted_by_id")
+  deletedBy      User?         @relation("SpaceDeletedBy", fields: [deletedById], references: [id])
+
+  @@index([organizationId])
+  @@index([createdById])
+  @@index([organizationId, position])
+  @@map("spaces")
+}
+
+model SpaceMember {
+  id        String       @id @default(uuid())
+  spaceId   String       @map("space_id")
+  userId    String       @map("user_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+  role      ResourceRole @default(MEMBER)
+  space     Space        @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, userId])
+  @@index([userId])
+  @@map("space_members")
+}
+
+model Folder {
+  id        String         @id @default(uuid())
+  name      String
+  color     String?
+  position  Int            @default(0)
+  spaceId   String         @map("space_id")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  members   FolderMember[]
+  space     Space          @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  lists     List[]
+  
+  isDeleted Boolean        @default(false) @map("is_deleted")
+  deletedAt DateTime?      @map("deleted_at")
+  deletedById String?      @map("deleted_by_id")
+  deletedBy   User?        @relation("FolderDeletedBy", fields: [deletedById], references: [id])
+
+  @@index([spaceId])
+  @@index([spaceId, position])
+  @@map("folders")
+}
+
+model List {
+  id          String       @id @default(uuid())
+  name        String
+  color       String?
+  position    Int          @default(0)
+  defaultView String       @default("list") @map("default_view")
+  spaceId     String       @map("space_id")
+  folderId    String?      @map("folder_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  members     ListMember[]
+  folder      Folder?      @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  space       Space        @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  statuses    Status[]
+  tasks       Task[]
+
+  isDeleted   Boolean      @default(false) @map("is_deleted")
+  deletedAt   DateTime?    @map("deleted_at")
+  deletedById String?      @map("deleted_by_id")
+  deletedBy   User?        @relation("ListDeletedBy", fields: [deletedById], references: [id])
+
+  @@index([spaceId])
+  @@index([folderId])
+  @@index([spaceId, position])
+  @@map("lists")
+}
+
+model Status {
+  id       String     @id @default(uuid())
+  name     String
+  color    String     @default("#d1d5db")
+  type     StatusType @default(OPEN)
+  position Int        @default(0)
+  listId   String     @map("list_id")
+  list     List       @relation(fields: [listId], references: [id], onDelete: Cascade)
+  tasks    Task[]     @relation("taskStatus")
+
+  @@index([listId])
+  @@index([listId, position])
+  @@map("statuses")
+}
+
+model Project {
+  id             String        @id @default(uuid())
+  name           String
+  description    String?
+  status         ProjectStatus @default(ACTIVE)
+  organizationId String        @map("organization_id")
+  createdById    String        @map("created_by_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  spaceId        String?       @map("space_id")
+  createdBy      User          @relation("projectsCreated", fields: [createdById], references: [id])
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  space          Space?        @relation(fields: [spaceId], references: [id])
+  tasks          Task[]
+
+  isDeleted      Boolean       @default(false) @map("is_deleted")
+  deletedAt      DateTime?     @map("deleted_at")
+  deletedById    String?       @map("deleted_by_id")
+  deletedBy      User?         @relation("ProjectDeletedBy", fields: [deletedById], references: [id])
+
+  @@index([organizationId])
+  @@index([spaceId])
+  @@index([createdById])
+  @@map("projects")
+}
+
+model Task {
+  id           String       @id @default(uuid())
+  title        String
+  description  String?
+  status       TaskStatus   @default(OPEN)
+  priority     TaskPriority @default(LOW)
+  startDate    DateTime?    @map("start_date")
+  dueDate      DateTime?    @map("due_date")
+  projectId    String?      @map("project_id")
+  createdById  String       @map("created_by_id")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  position     Int          @default(0)
+  listId       String?      @map("list_id")
+  statusId     String?      @map("status_id")
+  parentTaskId String?      @map("parent_task_id")
+  attachments  Attachment[]
+  comments     Comment[]
+  createdBy    User         @relation("tasksCreated", fields: [createdById], references: [id])
+  list         List?        @relation(fields: [listId], references: [id])
+  parentTask   Task?        @relation("subtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks     Task[]       @relation("subtasks")
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskStatus   Status?      @relation("taskStatus", fields: [statusId], references: [id])
+  timeEntries  TimeEntry[]
+  assignees    User[]       @relation("TaskAssignees")
+  tags         Tag[]        @relation("TaskTags")
+  favoritedBy  User[]       @relation("TaskFavorites")
+
+  isDeleted    Boolean      @default(false) @map("is_deleted")
+  deletedAt    DateTime?    @map("deleted_at")
+  deletedById  String?      @map("deleted_by_id")
+  deletedBy    User?        @relation("TaskDeletedBy", fields: [deletedById], references: [id])
+
+  @@index([projectId])
+  @@index([listId])
+  @@index([statusId])
+  @@index([parentTaskId])
+  @@index([createdById])
+  @@index([status])
+  @@index([listId, position])
+  @@map("tasks")
+}
+
+
+
+model Attachment {
+  id           String   @id @default(uuid())
+  filename     String
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  size         Int
+  taskId       String   @map("task_id")
+  uploadedById String   @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedBy   User     @relation("attachmentsUploaded", fields: [uploadedById], references: [id])
+
+  isDeleted    Boolean  @default(false) @map("is_deleted")
+  deletedAt    DateTime? @map("deleted_at")
+  deletedById  String?   @map("deleted_by_id")
+  deletedBy    User?     @relation("AttachmentDeletedBy", fields: [deletedById], references: [id])
+
+  @@index([taskId])
+  @@index([uploadedById])
+  @@map("attachments")
+}
+
+model Upload {
+  id           String       @id @default(uuid())
+  folder       UploadFolder
+  filename     String
+  originalName String       @map("original_name")
+  mimeType     String       @map("mime_type")
+  size         Int
+  uploadedById String       @map("uploaded_by_id")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  uploadedBy   User         @relation("uploadsUploaded", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([folder])
+  @@index([uploadedById])
+  @@index([createdAt])
+  @@map("uploads")
+}
+
+model Message {
+  id         String    @id @default(uuid())
+  text       String?
+  imageUrl   String?   @map("image_url")
+  fileUrl    String?   @map("file_url")
+  fileType   String?   @map("file_type")
+  fileName   String?   @map("file_name")
+  fileSize   Int?      @map("file_size")
+  senderId   String    @map("sender_id")
+  receiverId String    @map("receiver_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  readAt     DateTime? @map("read_at")
+  receiver   User      @relation("messagesReceived", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User      @relation("messagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, receiverId])
+  @@index([receiverId, senderId])
+  @@index([createdAt])
+  @@index([receiverId, readAt])
+  @@map("messages")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  text      String?  
+  imageUrl  String?  @map("image_url")
+  fileUrl   String?  @map("file_url")
+  fileType  String?  @map("file_type")
+  fileName  String?  @map("file_name")
+  fileSize  Int?     @map("file_size")
+  /// Additional files on the same comment (same send); first file stays in fileUrl/fileName/...
+  attachments Json?  @map("attachments")
+  createdAt DateTime @default(now()) @map("created_at")
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation("userComments", fields: [userId], references: [id], onDelete: Cascade)
+  mentions  String[] @default([])
+  isPrivate Boolean  @default(false) @map("is_private")
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("comments")
+}
+
+model Activity {
+  id         String   @id @default(uuid())
+  orgId      String?  @map("org_id")
+  userId     String   @map("user_id")
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  action     String
+  changes    Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation("userActivities", fields: [userId], references: [id], onDelete: Cascade)
+  mentions   String[] @default([])
+  isPrivate  Boolean  @default(false) @map("is_private")
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([orgId])
+  @@index([createdAt])
+  @@map("activities")
+}
+
+model TimeEntry {
+  id              String    @id @default(uuid())
+  taskId          String    @map("task_id")
+  userId          String    @map("user_id")
+  startTime       DateTime? @map("start_time")
+  endTime         DateTime? @map("end_time")
+  durationSeconds Int       @default(0) @map("duration_seconds")
+  description     String?
+  isBillable      Boolean   @default(false) @map("is_billable")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user            User      @relation("userTimeEntries", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([userId, endTime])
+  @@map("time_entries")
+}
+
+model Notification {
+  id             String        @id @default(uuid())
+  userId         String        @map("user_id")
+  organizationId String?       @map("organization_id")
+  title          String
+  message        String
+  isRead         Boolean       @default(false) @map("is_read")
+  link           String?
+  senderId       String?       @map("sender_id")
+  senderAvatarUrl String?      @map("sender_avatar_url")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  user           User          @relation("userNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Invitation {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  email          String
+  role           OrgRole      @default(MEMBER)
+  token          String       @unique @default(uuid())
+  expiresAt      DateTime     @map("expires_at")
+  usedAt         DateTime?    @map("used_at")
+  invitedById    String       @map("invited_by_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  invitedBy      User         @relation("invitations_sent", fields: [invitedById], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([email])
+  @@index([organizationId])
+  @@map("invitations")
+}
+
+model Tag {
+  id             String       @id @default(uuid())
+  name           String
+  color          String       @default("#D1D5DB")
+  organizationId String       @map("organization_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tasks          Task[]       @relation("TaskTags")
+
+  @@unique([organizationId, name])
+  @@map("tags")
+}
+
+model FolderMember {
+  id        String       @id @default(uuid())
+  folderId  String       @map("folder_id")
+  userId    String       @map("user_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+  role      ResourceRole @default(MEMBER)
+  folder    Folder       @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([folderId, userId])
+  @@index([userId])
+  @@map("folder_members")
+}
+
+model ListMember {
+  id        String       @id @default(uuid())
+  listId    String       @map("list_id")
+  userId    String       @map("user_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+  role      ResourceRole @default(MEMBER)
+  list      List         @relation(fields: [listId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, userId])
+  @@index([userId])
+  @@map("list_members")
+}
+
+enum OrgRole {
+  OWNER
+  SUPER_ADMIN
+  ADMIN
+  MEMBER
+  GUEST
+  LIMITED_MEMBER
+}
+
+enum StatusType {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  COMPLETED
+}
+
+enum TaskStatus {
+  OPEN
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  IN_REVIEW
+  ACCEPTED
+  REJECTED
+  CLOSED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ResourceRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum UploadFolder {
+  AVATARS
+  CHAT
+  THUMBNAILS
+  SOUNDS
+}
