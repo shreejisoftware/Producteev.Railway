@@ -33,12 +33,12 @@ import { useFaviconNotification } from '../../hooks/useFaviconNotification';
 import { useToast } from '../ui/Toast';
 import { openOAuthPopup } from '../../utils/openOAuthPopup';
 import { resolveAssetUrl } from '../../utils/assetUrl';
+import producteevLogoUrl from './website name.png';
+import slackDefaultIconUrl from './Gemini_Generated_Image_58b60358b60358b6-removebg-preview.png';
 
-const PRODUCTEEV_LOGO_URL =
-  'https://raw.githubusercontent.com/shreejisoftware/Producteev/Producteev/frontend/src/components/layout/website%20name.png';
+const PRODUCTEEV_LOGO_URL = producteevLogoUrl;
 
-const DEFAULT_SLACK_ICON_URL =
-  'https://raw.githubusercontent.com/shreejisoftware/Producteev/Producteev/frontend/src/components/layout/Gemini_Generated_Image_58b60358b60358b6-removebg-preview.png';
+const DEFAULT_SLACK_ICON_URL = slackDefaultIconUrl;
 
 const SLACK_ICON_URL: string = (import.meta as any)?.env?.VITE_SLACK_ICON_URL || DEFAULT_SLACK_ICON_URL;
 

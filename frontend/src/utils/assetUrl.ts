@@ -14,7 +14,7 @@ export function resolveAssetUrl(value: string): string {
   if (/^https?:\/\//i.test(value)) return value;
   if (value.startsWith('/uploads/')) {
     const base = ASSET_BASE_URL.replace(/\/$/, '');
-    return `${base}${value}`;
+    return base ? `${base}${value}` : `${window.location.origin}${value}`;
   }
   return value;
 }
